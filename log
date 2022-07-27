@@ -1,0 +1,26 @@
+
+target/riscv32imc-unknown-none-elf/debug/soos:     file format elf32-littleriscv
+
+
+Disassembly of section .start:
+
+80000000 <_start>:
+80000000:	00082117          	auipc	sp,0x82
+80000004:	00010113          	mv	sp,sp
+
+80000008 <.Lpcrel_hi1>:
+80000008:	00000697          	auipc	a3,0x0
+8000000c:	01468693          	addi	a3,a3,20 # 8000001c <_trap>
+80000010:	30569073          	csrw	mtvec,a3
+80000014:	00c0006f          	j	80000020 <main>
+	...
+
+Disassembly of section .text:
+
+8000001c <_trap>:
+8000001c:	a001                	j	8000001c <_trap>
+	...
+
+80000020 <main>:
+80000020:	a009                	j	80000022 <main+0x2>
+80000022:	a001                	j	80000022 <main+0x2>

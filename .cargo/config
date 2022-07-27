@@ -1,6 +1,6 @@
 [build]
 target = "riscv32imc-unknown-none-elf"
-rustflags = ["-C", "link-arg=-Tsrc/qemu-virt.ld"]
+rustflags = ["-C", "link-arg=-Tsrc/linker.ld"]
 
 [target.riscv32imc-unknown-none-elf]
 runner = "qemu-system-riscv32 -d int -machine virt -cpu rv32 -m 1G -nographic -bios none -kernel"

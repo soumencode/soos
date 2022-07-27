@@ -1,7 +1,18 @@
+MEMORY
+{
+	prog(rwx) : ORIGIN = 0x80000000, LENGTH = 0x80000
+	data(rwx) : ORIGIN = 0x80080000, LENGTH = 0x80000
+}
+
 ENTRY(_start)
 
 SECTIONS
 {
+	.start :
+	{
+		KEEP(*(.start));
+	} > prog
+
 	.text :
 	{
         . = ALIGN(4);
@@ -30,11 +41,8 @@ SECTIONS
         *(.bss .bss.*);
         . = ALIGN(4);
 		_ebss = .;
-
-		. = ALIGN(4);
-		_sstack = .;
-		KEEP(*(.stack))
-		. = ALIGN(4);
-		_estack = .;
 	} > data
+
+	PROVIDE(_stack = . + 0x2000);
 }
+
