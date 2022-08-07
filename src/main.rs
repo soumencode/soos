@@ -6,9 +6,11 @@
 #![feature(fn_align)]
 
 use core::arch::asm;
-
 mod uart;
+mod timer;
+use timer::Oneshot;
 use riscv::register;
+use core::fmt::Write;
 
 extern "C" {
     static _stack: usize;
@@ -21,6 +23,11 @@ extern "C" fn _start() {
     unsafe {
         asm!(
 			"la sp, {stack}",
+			// enable interrupt
+			"csrr t0, mstatus",
+			"ori t0, t0, 0x8",
+			"csrw mstatus, t0",
+			// goto main
 			"j main",
 			stack = sym _stack,
 			options(noreturn));
@@ -30,9 +37,10 @@ extern "C" fn _start() {
 #[naked]
 #[repr(align(4))]
 extern "C" fn _trap() {
-    unsafe {
-        asm!("1: j 1b", options(noreturn));
-    }
+	unsafe {
+		asm!("1: j 1b",
+			 options(noreturn));
+	}
 }
 
 /* https://www.reddit.com/r/rust/comments/estvau/til_why_the_eh_personality_language_item_is */
@@ -56,7 +64,10 @@ fn main() -> ! {
         register::pmpcfg0::set_pmp(0, register::Range::TOR, register::Permission::RWX, false);
     }
 
-    let uart = uart::Uart::new();
-    uart.send('G' as u8);
+    let mut uart = uart::Uart::new();
+	let timer = timer::MTimer::new();
+	let current = timer.get_current();
+	write!(uart, "{}", current);
+	timer.start(10000);
     loop {}
 }

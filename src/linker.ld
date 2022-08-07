@@ -45,4 +45,3 @@ SECTIONS
 
 	PROVIDE(_stack = . + 0x2000);
 }
-
