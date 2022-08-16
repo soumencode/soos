@@ -1,7 +1,7 @@
 MEMORY
 {
-	prog(rwx) : ORIGIN = 0x80000000, LENGTH = 0x80000
-	data(rwx) : ORIGIN = 0x80080000, LENGTH = 0x80000
+	prog(rwx) : ORIGIN = 0x80000000, LENGTH = 0x20000000
+	data(rwx) : ORIGIN = 0xA0000000, LENGTH = 0x20000000
 }
 
 ENTRY(_start)
@@ -15,33 +15,40 @@ SECTIONS
 
 	.text :
 	{
-        . = ALIGN(4);
+        . = ALIGN(8);
 		_stext = .;
 		*(.text .text.*);
-        . = ALIGN(4);
+        . = ALIGN(8);
 		_etext = .;
 
-        . = ALIGN(4);
+        . = ALIGN(8);
 		_srodata = .;
 		*(.rodata .rodata.*);
-        . = ALIGN(4);
+        . = ALIGN(8);
 		_erodata = .;
 	} > prog
 
 	.data :
 	{
-        . = ALIGN(4);
+        . = ALIGN(8);
 		_sdata = .;
 		*(.data .data.*);
-        . = ALIGN(4);
+        . = ALIGN(8);
 		_edata = .;
 
-        . = ALIGN(4);
+        . = ALIGN(8);
 		_sbss = .;
         *(.bss .bss.*);
-        . = ALIGN(4);
+        . = ALIGN(8);
 		_ebss = .;
 	} > data
 
-	PROVIDE(_stack = . + 0x2000);
+	.stack (NOLOAD) :
+	{
+        . = ALIGN(8);
+		_sstack = .;
+		KEEP(*(.stack_memory))
+        . = ALIGN(8);
+		_estack = .;
+	} > data
 }
