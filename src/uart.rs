@@ -21,19 +21,19 @@ impl Uart {
 }
 
 impl Write for Uart {
-	fn write_str(&mut self, s: &str) -> Result<(), Error> {
-		for c in s.bytes() {
-			self.send(c);
-		}
-		Ok(())
-	}
+    fn write_str(&mut self, s: &str) -> Result<(), Error> {
+        for c in s.bytes() {
+            self.send(c);
+        }
+        Ok(())
+    }
 
-/*
-	fn write_fmt(&mut self, args: Arguments) -> Result<(), Error> {
-		if let Some(s) = args.as_str() {
-			self.write_str(s);
-		}
-		Ok(())
-	}
-*/
+    /*
+        fn write_fmt(&mut self, args: Arguments) -> Result<(), Error> {
+            if let Some(s) = args.as_str() {
+                self.write_str(s);
+            }
+            Ok(())
+        }
+    */
 }
