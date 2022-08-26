@@ -47,7 +47,6 @@ extern "C" fn _start() {
 extern "C" fn _trap() {
     unsafe {
         asm!(
-            "999: j 999b",
             "csrrw sp, mscratch, sp",
             "bnez sp, 300f",
             // kernel->kernelの割り込み
@@ -93,6 +92,7 @@ extern "C" fn _trap() {
             "addi sp, sp, 16*4",
             // trapの終わり
             "mret",
+
             // app->kernelの割り込み
             "300:",
             // kernelのspにひとまず保存s0(x8)
@@ -100,7 +100,7 @@ extern "C" fn _trap() {
             // s0にappの保存先がある？
             // 上の(a)を見ろ
             // コンパイラが勝手に上書きしないのかな
-            "lw s0,   1*4(s0)",
+            "lw s0,   1*4(sp)",
             "sw x1,   0*4(s0)",
             "sw x3,   2*4(s0)",
             "sw x4,   3*4(s0)",
@@ -131,7 +131,7 @@ extern "C" fn _trap() {
             "sw x30, 29*4(s0)",
             "sw x31, 30*4(s0)",
             // きちんのappのs0も保存
-            "lw t0, 0*4(s0)",
+            "lw t0, 0*4(sp)",
             "sw t0, 7*4(s0)",
             // spにmscratch/mepc/mtval/mcauseを保存
             "csrr t0, mscratch",
@@ -156,12 +156,12 @@ extern "C" fn _trap() {
             "lw t0, 2*4(sp)",
             "csrw mepc, t0",
             "csrw mscratch, zero",
-            "csrr t0, mstatus",
             // MPP=Machine
+            "csrr t0, mstatus",
             "li t1, 0x1800",
             "or t0, t0, t1",
             "csrw mstatus, t0",
-            // swtichの再開
+            // switch_to_processの再開
             "mret",
             options(noreturn)
         )
@@ -213,9 +213,8 @@ impl Process {
 unsafe fn switch_process(process: &Process) {
     asm!(
         // kernelでここに来る
-        // userにswitchする前にkernelのregisterを保存する
+        // userにswitch_to_processする前にkernelのregisterを保存する
         "addi sp, sp, -34*4",
-
         "sw x1,  3*4(sp)",
         "sw x3,  4*4(sp)",
         "sw x4,  5*4(sp)",
@@ -248,18 +247,18 @@ unsafe fn switch_process(process: &Process) {
         "sw x31, 32*4(sp)",
         // userプロセスの情報も保存する
         // kernelに戻ったあとにuserプロセスのレジスタを保存するため(a)
-        "sw a0, 1*4(sp)",
+        "sw a0, 1*4(sp)", // a0=x10
 
-        // MPP=USER, MIE=enable
+        // MPP=USER, MIE=disable
         "li t0, 0x00001808",
         "csrrc x0, mstatus, t0",
         // MPIE=enable
-        "li t0, 0x00000080",
-        "csrrs x0, mstatus, t0",
+        //"li t0, 0x00000080",
+        //"csrrs x0, mstatus, t0",
         // 次の実行pcを保存
         "lui t0, %hi(100f)",
         "addi t0, t0, %lo(100f)",
-        "sw t0, 2*4(sp)",
+        "sw t0, 2*4(sp)", // t0=x5
         // kernelのspを保存する
         "csrw mscratch, sp",
 
@@ -270,7 +269,7 @@ unsafe fn switch_process(process: &Process) {
         "csrw mepc, a1",
 
         // appのレジスタに切り替える
-        "mv x5,   a0", // t0==x5
+        "mv t0,   a0", // t0==x5
         "lw x1,   0*4(t0)",
         "lw x2,   1*4(t0)",
         "lw x3,   2*4(t0)",
@@ -304,6 +303,7 @@ unsafe fn switch_process(process: &Process) {
         "lw  x5,  4*4(t0)",
         // mepcが指すappに飛ぶ
         "mret",
+        "900: j 900b",
 
         // ここはkernel
         // kernelのレジスタに切り替える
@@ -344,14 +344,13 @@ unsafe fn switch_process(process: &Process) {
 
         in("a0") &process.regs as &[usize; 32],
         in("a1") process.pc as *mut usize,
-        options(noreturn),
     );
 }
 
 unsafe fn process1_func() -> ! {
     let mut uart = uart::Uart::new();
+    write!(uart, "hello1\n");
     loop {
-        write!(uart, "hello1\n");
     }
 }
 
@@ -366,14 +365,22 @@ fn main() -> ! {
         register::pmpcfg0::set_pmp(0, register::Range::TOR, register::Permission::RWX, false);
     }
 
+	let timer = timer::MTimer::new();
+	timer.start(10000000);
+
     loop {
         unsafe {
-            let mut uart = uart::Uart::new();
             let mut process1 = Process::new(
                 process1_func,
-                /*0x80085000*/ (&_estack as *const u8 as usize - 0x2000) as *mut usize,
+                (&_estack as *const u8 as usize - 0x2000) as *mut usize,
             );
             switch_process(&process1);
+
+			let mut uart = uart::Uart::new();
+			write!(uart, "bye1\n");
+
+			loop {
+			}
         }
     }
 }
