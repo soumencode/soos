@@ -15,7 +15,11 @@ impl MTimer {
         unsafe { read_volatile(0x200BFF8 as *const usize) }
     }
 
-    pub fn interrupt_handler(&self) {}
+    pub fn interrupt_handler(&self) {
+        unsafe {
+            write_volatile(0x2004000 as *mut usize, 0xFFFFFFFF as usize);
+        };
+	}
 }
 
 impl Oneshot for MTimer {

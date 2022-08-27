@@ -42,6 +42,11 @@ extern "C" fn _start() {
     }
 }
 
+#[no_mangle]
+fn clear_interrupt() {
+	timer::MTimer::new().interrupt_handler();
+}
+
 #[naked]
 #[repr(align(4))]
 extern "C" fn _trap() {
@@ -71,8 +76,10 @@ extern "C" fn _trap() {
             "sw x15, 13*4(sp)", // a5
             "sw x16, 14*4(sp)", // a6
             "sw x17, 15*4(sp)", // a7
+
             // 割り込みハンドラ
-            // jal ra, _start_trap_rust_from_kernel
+            //"jal ra, interrupt_handler",
+
             "lw x1,   0*4(sp)", // ra
             "lw x5,   1*4(sp)", // t0
             "lw x6,   2*4(sp)", // t1
@@ -145,11 +152,9 @@ extern "C" fn _trap() {
             //
             "bge t0, zero, 200f",
             "mv a0, t0",
-            // exceptionの場合
-            // esp32-c3の場合は死ぬ
-            //"jal ra, _disable_interrupt_trap_rust_from_app",
+			// まず割り込みをクリアする
+			"jal ra, clear_interrupt",
 
-            // 割り込みの場合
             "200:",
             // switchでappに移っているのだからswitchから再開
             // t0にはそのpcが入っている
@@ -204,6 +209,7 @@ impl Process {
             pc: entry as *mut usize,
         };
 		process.regs[1] = s as usize;
+		process.regs[31] = entry as usize;
 		process
     }
 }
@@ -253,8 +259,8 @@ unsafe fn switch_process(process: &Process) {
         "li t0, 0x00001808",
         "csrrc x0, mstatus, t0",
         // MPIE=enable
-        //"li t0, 0x00000080",
-        //"csrrs x0, mstatus, t0",
+        "li t0, 0x00000080",
+        "csrrs x0, mstatus, t0",
         // 次の実行pcを保存
         "lui t0, %hi(100f)",
         "addi t0, t0, %lo(100f)",
@@ -264,9 +270,8 @@ unsafe fn switch_process(process: &Process) {
 
         // userのpcをロードする
         // 前に実行していたpcが保存されているのでそれを取得する
-        //"lw t0, 31*4(a0)",
-        //"csrw mepc, t0",
-        "csrw mepc, a1",
+        "lw t0, 31*4(a0)",
+        "csrw mepc, t0",
 
         // appのレジスタに切り替える
         "mv t0,   a0", // t0==x5
@@ -303,7 +308,6 @@ unsafe fn switch_process(process: &Process) {
         "lw  x5,  4*4(t0)",
         // mepcが指すappに飛ぶ
         "mret",
-        "900: j 900b",
 
         // ここはkernel
         // kernelのレジスタに切り替える
