@@ -358,6 +358,13 @@ unsafe fn process1_func() -> ! {
     }
 }
 
+unsafe fn process2_func() -> ! {
+    let mut uart = uart::Uart::new();
+    write!(uart, "hello2\n");
+    loop {
+    }
+}
+
 #[no_mangle]
 fn main() -> ! {
     unsafe {
@@ -370,21 +377,28 @@ fn main() -> ! {
     }
 
 	let timer = timer::MTimer::new();
-	timer.start(10000000);
 
-    loop {
-        unsafe {
-            let mut process1 = Process::new(
-                process1_func,
-                (&_estack as *const u8 as usize - 0x2000) as *mut usize,
-            );
+    unsafe {
+		let mut process1 = Process::new(
+			process1_func,
+			(&_estack as *const u8 as usize - 0x1000) as *mut usize,
+		);
+
+		let mut process2 = Process::new(
+			process2_func,
+			(&_estack as *const u8 as usize - 0x2000) as *mut usize,
+		);
+
+		let mut uart = uart::Uart::new();
+
+		loop {
+			timer.start(10000000);
             switch_process(&process1);
 
-			let mut uart = uart::Uart::new();
-			write!(uart, "bye1\n");
+			write!(uart, "kernel\n");
 
-			loop {
-			}
+			timer.start(10000000);
+            switch_process(&process2);
         }
     }
 }
